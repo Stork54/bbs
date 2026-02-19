@@ -1,63 +1,6 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>小魚BBS系統</title>
-<style>
-body{
-  background:black;
-  color:#00ff00;
-  font-family:noto-sans;
-}
-input,button,select{
-  background:black;
-  color:#00ff00;
-  border:1px solid #00ff00;
-}
-.panel{
-  border:1px solid #00ff00;
-  padding:10px;
-  margin:10px 0;
-}
-</style>
-</head>
-<body>
-
-<h2>=== 小魚 BBS 系統 V1.0.0 ===</h2>
-
-<div id="auth" class="panel">
-  <input id="username" placeholder="帳號">
-  <input id="password" type="password" placeholder="密碼">
-  <button onclick="login()">登入 / 註冊</button>
-</div>
-
-<div id="bbs" style="display:none">
-
-  👤 目前使用者：<span id="currentUser"></span>
-  <button onclick="logout()">登出</button>
-
-  <div class="panel">
-    看板：
-    <select id="boardSelect" onchange="loadPosts()">
-      <option>Minecraft</option>
-      <option>聊天</option>
-      <option>公告</option>
-      </option>魚板</option>
-    </select>
-  </div>
-
-  <div class="panel">
-    <input id="msg" placeholder="輸入訊息">
-    <button onclick="post()">發文</button>
-  </div>
-
-  <div class="panel" id="posts"></div>
-
-</div>
-
 <script>
-alert("JS真的有執行");
-</script>
+alert("JS真的有執行，請略過此訊息");
+
 let currentUser=null;
 
 function init(){
@@ -68,7 +11,7 @@ function init(){
     localStorage.setItem("boards",JSON.stringify({
       "Minecraft":[],
       "聊天":[],
-      "公告":[]
+      "公告":[],
       "魚板":[]
     }));
   }
@@ -78,7 +21,7 @@ function login(){
   let u=document.getElementById("username").value;
   let p=document.getElementById("password").value;
 
-  let users=JSON.parse(localStorage.getItem("users"));
+  let users=JSON.parse(localStorage.getItem("users")||"{}");
 
   if(users[u]){
     if(users[u].password!==p){
@@ -130,8 +73,5 @@ function post(){
 }
 
 init();
-</script>
-
-</body>
-  </html>
-v1.0.0
+                       </script>
+version 1.0.0 bugfix
