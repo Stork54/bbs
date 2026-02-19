@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>LFS BBS</title>
+<style>
+body{
+  background:black;
+  color:#00ff00;
+  font-family:monospace;
+}
+input,button,select{
+  background:black;
+  color:#00ff00;
+  border:1px solid #00ff00;
+}
+.panel{
+  border:1px solid #00ff00;
+  padding:10px;
+  margin:10px 0;
+}
+</style>
+</head>
+<body>
+
+<h2>=== LFS BBS 系統 ===</h2>
+
+<div id="auth" class="panel">
+  <input id="username" placeholder="帳號">
+  <input id="password" type="password" placeholder="密碼">
+  <button onclick="login()">登入 / 註冊</button>
+</div>
+
+<div id="bbs" style="display:none">
+
+  👤 目前使用者：<span id="currentUser"></span>
+  <button onclick="logout()">登出</button>
+
+  <div class="panel">
+    看板：
+    <select id="boardSelect" onchange="loadPosts()">
+      <option>Minecraft</option>
+      <option>聊天</option>
+      <option>公告</option>
+    </select>
+  </div>
+
+  <div class="panel">
+    <input id="msg" placeholder="輸入訊息">
+    <button onclick="post()">發文</button>
+  </div>
+
+  <div class="panel" id="posts"></div>
+
+</div>
+
+<script>
+let currentUser=null;
+
+function init(){
+  if(!localStorage.getItem("users")){
+    localStorage.setItem("users",JSON.stringify({}));
+  }
+  if(!localStorage.getItem("boards")){
+    localStorage.setItem("boards",JSON.stringify({
+      "Minecraft":[],
+      "聊天":[],
+      "公告":[]
+    }));
+  }
+}
+
+function login(){
+  let u=document.getElementById("username").value;
+  let p=document.getElementById("password").value;
+
+  let users=JSON.parse(localStorage.getItem("users"));
+
+  if(users[u]){
+    if(users[u].password!==p){
+      alert("密碼錯誤");
+      return;
+    }
+  }else{
+    users[u]={password:p};
+    localStorage.setItem("users",JSON.stringify(users));
+  }
+
+  currentUser=u;
+  document.getElementById("auth").style.display="none";
+  document.getElementById("bbs").style.display="block";
+  document.getElementById("currentUser").innerText=u;
+  loadPosts();
+}
+
+function logout(){
+  currentUser=null;
+  document.getElementById("auth").style.display="block";
+  document.getElementById("bbs").style.display="none";
+}
+
+function loadPosts(){
+  let board=document.getElementById("boardSelect").value;
+  let boards=JSON.parse(localStorage.getItem("boards"));
+  let postsDiv=document.getElementById("posts");
+  postsDiv.innerHTML="";
+  boards[board].forEach(p=>{
+    postsDiv.innerHTML+=`<p>[${p.time}] ${p.user} > ${p.text}</p>`;
+  });
+}
+
+function post(){
+  let board=document.getElementById("boardSelect").value;
+  let text=document.getElementById("msg").value;
+  let boards=JSON.parse(localStorage.getItem("boards"));
+
+  boards[board].push({
+    user:currentUser,
+    text:text,
+    time:new Date().toLocaleString()
+  });
+
+  localStorage.setItem("boards",JSON.stringify(boards));
+  document.getElementById("msg").value="";
+  loadPosts();
+}
+
+init();
+</script>
+
+</body>
+  </html>
