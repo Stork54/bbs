@@ -2,12 +2,12 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>LFS BBS</title>
+<title>小魚BBS系統</title>
 <style>
 body{
   background:black;
   color:#00ff00;
-  font-family:monospace;
+  font-family:noto-sans;
 }
 input,button,select{
   background:black;
@@ -23,7 +23,7 @@ input,button,select{
 </head>
 <body>
 
-<h2>=== LFS BBS 系統 ===</h2>
+<h2>=== 小魚 BBS 系統 V1.0.0 ===</h2>
 
 <div id="auth" class="panel">
   <input id="username" placeholder="帳號">
@@ -42,6 +42,7 @@ input,button,select{
       <option>Minecraft</option>
       <option>聊天</option>
       <option>公告</option>
+      </option>魚板</option>
     </select>
   </div>
 
@@ -66,6 +67,7 @@ function init(){
       "Minecraft":[],
       "聊天":[],
       "公告":[]
+      "魚板":[]
     }));
   }
 }
@@ -130,3 +132,4 @@ init();
 
 </body>
   </html>
+v1.0.0
