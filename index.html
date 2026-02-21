@@ -1,171 +1,162 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<title>小魚BBS系統 V1.0.0</title>
+<title>小魚BBS系統 V2.0.0 - 多人連線版</title>
 <style>
-body{
-  background:black;
-  color:#00ff00;
-  font-family:noto-sans;
-}
-input,button,select{
-  background:black;
-  color:#00ff00;
-  border:1px solid #00ff00;
-}
-.panel{
-  border:1px solid #00ff00;
-  padding:10px;
-  margin:10px 0;
-}
+  body { background: black; color: #00ff00; font-family: 'Courier New', monospace; line-height: 1.5; }
+  input, button, select { background: black; color: #00ff00; border: 1px solid #00ff00; padding: 5px; margin: 2px; }
+  button:hover { background: #004400; cursor: pointer; }
+  .panel { border: 1px solid #00ff00; padding: 10px; margin: 10px 0; }
+  .post-item { border-bottom: 1px dashed #005500; padding: 5px 0; }
+  .timestamp { color: #888; font-size: 0.8em; }
+  .user-tag { color: #ffff00; font-weight: bold; }
+  #status { color: yellow; margin-bottom: 10px; }
 </style>
 </head>
 <body>
-  <script src="storage.js"></script>
 
-<h2>=== 小魚 BBS 系統 V1.0.0 ===</h2>
+<h2>=== 小魚 BBS 系統 V2.0.0 (Cloud) ===</h2>
+<div id="status">系統初始化中...</div>
 
 <div id="auth" class="panel">
   <input id="username" placeholder="帳號">
-  <input id="password" type="password" placeholder="密碼">
+  <input id="password" type="password" placeholder="密碼 (簡易驗證)">
   <button onclick="login()">登入 / 註冊</button>
+  <p style="font-size: 0.8em;">* 提示：此版本使用 Firebase 雲端資料庫實現多人即時同步。</p>
 </div>
 
 <div id="bbs" style="display:none">
-  👥 目前使用者：<span id="currentUser"></span>
+  👤 當前在線：<span id="currentUser" class="user-tag"></span>
   <button onclick="logout()">登出</button>
 
   <div class="panel">
-    看板：
-    <select id="boardSelect" onchange="loadPosts()">
-      <option>Minecraft</option>
-      <option>聊天</option>
-      <option>公告</option>
-      <option>魚板</option>
+    切換看板：
+    <select id="boardSelect" onchange="switchBoard()">
+      <option value="Minecraft">Minecraft</option>
+      <option value="聊天">聊天</option>
+      <option value="公告">公告</option>
+      <option value="魚板">魚板</option>
     </select>
   </div>
 
   <div class="panel">
-    <input id="msg" placeholder="輸入訊息">
-    <button onclick="post()">發文</button>
+    <input id="msg" style="width: 70%;" placeholder="輸入訊息...">
+    <button onclick="post()">發送 (Enter)</button>
   </div>
 
-  <div class="panel" id="posts"></div>
+  <div class="panel">
+    <div id="posts">正在載入雲端訊息...</div>
+  </div>
 </div>
 
-<script>
-alert("JS真的有執行，略過此訊息，請按？確定？ V1.0.0");
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase, ref, push, set, onValue, get, child } 
+    from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// ----------------------------
-// 全域變數
-// ----------------------------
-let currentUser = null;
+  // --- 請將下方的配置替換成你自己 Firebase 專案的配置 ---
+  const firebaseConfig = {
+    apiKey: "你的API_KEY",
+    authDomain: "你的PROJECT_ID.firebaseapp.com",
+    databaseURL: "https://你的PROJECT_ID-default-rtdb.firebaseio.com",
+    projectId: "你的PROJECT_ID",
+    storageBucket: "你的PROJECT_ID.appspot.com",
+    messagingSenderId: "你的SENDER_ID",
+    appId: "你的APP_ID"
+  };
 
-// ----------------------------
-// 初始化
-// ----------------------------
-function init(){
-  if(!localStorage.getItem("users")){
-    localStorage.setItem("users", JSON.stringify({}));
-  }
-  if(!localStorage.getItem("boards")){
-    localStorage.setItem("boards", JSON.stringify({
-      "Minecraft": [],
-      "聊天": [],
-      "公告": [],
-      "魚板": []
-    }));
-  }
-}
+  // 初始化 Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
 
-// ----------------------------
-// 登入 / 註冊
-// ----------------------------
-function login(){
-  let u = document.getElementById("username").value.trim();
-  let p = document.getElementById("password").value.trim();
+  let currentUser = null;
+  let currentBoard = "Minecraft";
 
-  if(!u || !p){
-    alert("請輸入帳號與密碼");
-    return;
-  }
+  // 將函數掛載到 window，讓 HTML 的 onclick 可以呼叫
+  window.login = async () => {
+    const u = document.getElementById("username").value.trim();
+    const p = document.getElementById("password").value.trim();
+    if (!u || !p) return alert("請輸入完整資料");
 
-  let users = JSON.parse(localStorage.getItem("users") || "{}");
-
-  if(users[u]){
-    if(users[u].password !== p){
-      alert("密碼錯誤");
-      return;
+    const userRef = ref(db, 'users/' + u);
+    const snapshot = await get(userRef);
+    
+    if (snapshot.exists()) {
+      if (snapshot.val().password !== p) {
+        return alert("密碼錯誤！");
+      }
+    } else {
+      // 註冊新帳號
+      await set(userRef, { password: p });
+      alert("新用戶註冊成功！");
     }
-  } else {
-    users[u] = { password: p };
-    localStorage.setItem("users", JSON.stringify(users));
+
+    currentUser = u;
+    document.getElementById("auth").style.display = "none";
+    document.getElementById("bbs").style.display = "block";
+    document.getElementById("currentUser").innerText = u;
+    document.getElementById("status").innerText = "連線狀態：雲端同步中";
+    switchBoard();
+  };
+
+  window.logout = () => {
+    location.reload(); // 簡單粗暴的登出
+  };
+
+  window.switchBoard = () => {
+    currentBoard = document.getElementById("boardSelect").value;
+    loadPosts();
+  };
+
+  // 核心功能：監聽雲端資料變動 (多人連線關鍵)
+  function loadPosts() {
+    const boardRef = ref(db, 'boards/' + currentBoard);
+    
+    // Firebase 的 onValue 會在資料更新時自動觸發
+    onValue(boardRef, (snapshot) => {
+      const postsDiv = document.getElementById("posts");
+      postsDiv.innerHTML = "";
+      const data = snapshot.val();
+      
+      if (!data) {
+        postsDiv.innerHTML = "目前尚無訊息，來搶頭香吧！";
+        return;
+      }
+
+      // 將資料轉換成陣列並排序（Firebase Key 是按時間生成的）
+      Object.values(data).reverse().forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'post-item';
+        div.innerHTML = `<span class="timestamp">[${p.time}]</span> <span class="user-tag">${p.user}</span>: ${p.text}`;
+        postsDiv.appendChild(div);
+      });
+    });
   }
 
-  currentUser = u;
-  document.getElementById("auth").style.display = "none";
-  document.getElementById("bbs").style.display = "block";
-  document.getElementById("currentUser").innerText = u;
-  loadPosts();
-}
+  window.post = async () => {
+    const msgInput = document.getElementById("msg");
+    const text = msgInput.value.trim();
+    if (!text) return;
 
-// ----------------------------
-// 登出
-// ----------------------------
-function logout(){
-  currentUser = null;
-  document.getElementById("auth").style.display = "block";
-  document.getElementById("bbs").style.display = "none";
-}
+    const boardRef = ref(db, 'boards/' + currentBoard);
+    await push(boardRef, {
+      user: currentUser,
+      text: text,
+      time: new Date().toLocaleTimeString()
+    });
 
-// ----------------------------
-// 讀取文章
-// ----------------------------
-function loadPosts(){
-  let board = document.getElementById("boardSelect").value;
-  let boards = JSON.parse(localStorage.getItem("boards") || "{}");
-  let postsDiv = document.getElementById("posts");
-  postsDiv.innerHTML = "";
+    msgInput.value = "";
+  };
 
-  if(!boards[board]) boards[board] = [];
-
-  boards[board].forEach(p=>{
-    postsDiv.innerHTML += `<p>[${p.time}] ${p.user} > ${p.text}</p>`;
-  });
-}
-
-// ----------------------------
-// 發文
-// ----------------------------
-function post(){
-  let board = document.getElementById("boardSelect").value;
-  let text = document.getElementById("msg").value.trim();
-
-  if(!text){
-    alert("請輸入訊息");
-    return;
-  }
-
-  let boards = JSON.parse(localStorage.getItem("boards") || "{}");
-  if(!boards[board]) boards[board] = [];
-
-  boards[board].push({
-    user: currentUser,
-    text: text,
-    time: new Date().toLocaleString()
+  // 監聽 Enter 鍵
+  document.getElementById("msg").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") window.post();
   });
 
-  localStorage.setItem("boards", JSON.stringify(boards));
-  document.getElementById("msg").value = "";
-  loadPosts();
-}
-
-// ----------------------------
-// 啟動
-// ----------------------------
-init();
+  document.getElementById("status").innerText = "連線狀態：準備就緒";
 </script>
 
 </body>
 </html>
+
